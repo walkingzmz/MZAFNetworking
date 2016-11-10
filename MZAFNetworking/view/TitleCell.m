@@ -56,11 +56,11 @@
    // NSLog(@"%@====--==%@",listModel.title,listModel.content);
   
     CGSize sizes =  [listModel.content sizeWithFont:[UIFont systemFontOfSize:13] maxW:[UIScreen mainScreen].bounds.size.width-24];
-     NSLog(@"%lf===00====%lf==%@",sizes.height,sizes.width,listModel.content);
+    // NSLog(@"%lf===00====%lf==%@",sizes.height,sizes.width,listModel.content);
     self.contentLabel.frame = CGRectMake(12, self.titleLabel.bottom+12, sizes.width, sizes.height);
 
     listModel.cellHeight = self.contentLabel.bottom+30;
-    NSLog(@"-------%lf",self.contentLabel.bottom);
+  //  NSLog(@"-------%lf",self.contentLabel.bottom);
 }
 
 @end

@@ -13,7 +13,9 @@
 #import "TwoLists.h"
 #import "TwoLostTableViewCell.h"
 @interface TwoViewController ()<UITableViewDelegate,UITableViewDataSource,SDCycleScrollViewDelegate>
-
+{
+    SDCycleScrollView *cycleScrollView2;
+}
 @property(nonatomic,strong)UITableView *tablevview;
 
 @property(nonatomic,strong)NSArray *listArr;
@@ -24,15 +26,48 @@
 @implementation TwoViewController
 
 
+-(void)viewWillAppear:(BOOL)animated
+{
+    [super viewWillAppear:animated];
+    
+    ZmzRequest *request = [[ZmzRequest alloc]init];
+    
+    [request getListDataBlock:^(id ServersData, BOOL isSuccess) {
+        
+        if (isSuccess) {
+            
+            
+            
+            NSDictionary *dicData = [ServersData objectForKey:@"data"];
+            
+            NSMutableArray *marr = [NSMutableArray array];
+            NSArray *imarr = [dicData objectForKey:@"carousel"];
+            
+            for (NSDictionary *dic in imarr) {
+                [marr addObject:[dic objectForKey:@"img"]];
+            }
+            
+            
+            self.imageArr = [marr mutableCopy];
+            cycleScrollView2.imageURLStringsGroup = self.imageArr;
+            self.listArr = [TwoLists mj_objectArrayWithKeyValuesArray:[dicData objectForKey:@"list"]];
+            [self.tablevview reloadData];
+            
+            
+        }
+    }];
+    
+
+}
+
 
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor whiteColor];
     self.title = @"展示";
    
-    self.listArr = [TwoLists mj_objectArrayWithKeyValuesArray:[self.codic objectForKey:@"list"]];
     
-    NSLog(@"%@----%@",self.listArr,self.codic);
+   // NSLog(@"%@----%@",self.listArr,self.codic);
     [self loadViews];
     
 }
@@ -45,7 +80,7 @@
     [self.view addSubview:self.tablevview];
     
     // 网络加载 --- 创建带标题的图片轮播器
-    SDCycleScrollView *cycleScrollView2 = [SDCycleScrollView cycleScrollViewWithFrame:CGRectMake(0, 0, self.view.frame.size.width, 150) delegate:self placeholderImage:[UIImage imageNamed:@"image0"]];
+    cycleScrollView2 = [SDCycleScrollView cycleScrollViewWithFrame:CGRectMake(0, 0, self.view.frame.size.width, 150) delegate:self placeholderImage:[UIImage imageNamed:@"image0"]];
     
     cycleScrollView2.pageControlAliment = SDCycleScrollViewPageContolAlimentRight;
     //cycleScrollView2.titlesGroup = self.imageArr;
@@ -53,7 +88,7 @@
    
     //         --- 模拟加载延迟
    // dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        cycleScrollView2.imageURLStringsGroup = self.imageArr;
+    
    // });
     
     self.tablevview.tableHeaderView = cycleScrollView2;

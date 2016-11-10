@@ -68,21 +68,18 @@
     
     [zquest getDateWithParams:param WithDataBlock:^(id ServersData, BOOL isSuccess) {
        
-       /*
-        NSString *jsonstr = [ServersData JSONString];
-        NSData *data = [jsonstr dataUsingEncoding:NSUTF8StringEncoding];
-        NSDictionary *newDic = [data objectFromJSONData];
+              
+        if (isSuccess) {
+            NSDictionary *dataDic = ServersData[@"data"];
+            NSDictionary *listDic = dataDic[@"list"];
+            NSArray *listModel = [Lists mj_objectArrayWithKeyValuesArray:listDic];
+            
+            self.listModelArr = [self listFrameWithListModel:listModel];
+            
+            NSLog(@"=====%@",self.listModelArr);
+            [self.tablevview reloadData];
+        }
        
-        NSLog(@"%@-----------%@",newDic,jsonstr);
-        */
-        
-        NSDictionary *dataDic = ServersData[@"data"];
-        NSDictionary *listDic = dataDic[@"list"];
-        NSArray *listModel = [Lists mj_objectArrayWithKeyValuesArray:listDic];
-        
-        self.listModelArr = [self listFrameWithListModel:listModel];
-        
-        [self.tablevview reloadData];
         
     }];
 
@@ -132,33 +129,9 @@
 
 -(void)rightbar{
     
-    
-    
-    ZmzRequest *request = [[ZmzRequest alloc]init];
-    
-    [request getListDataBlock:^(id ServersData, BOOL isSuccess) {
-        NSDictionary *dicData = [ServersData objectForKey:@"data"];
-        
-        NSMutableArray *marr = [NSMutableArray array];
-        NSArray *imarr = [dicData objectForKey:@"carousel"];
-        
-        for (NSDictionary *dic in imarr) {
-            [marr addObject:[dic objectForKey:@"img"]];
-        }
-        
-        if ([marr count]) {
-            TwoViewController *tc = [[TwoViewController alloc]init];
-            tc.imageArr = [marr mutableCopy];
-            tc.codic = dicData;
-            [self.navigationController pushViewController:tc animated:YES];
-        }
-        
-    }];
+    TwoViewController *tc = [[TwoViewController alloc]init];
+    [self.navigationController pushViewController:tc animated:YES];
 
-    
-    
-    
-    
 }
 
 @end

@@ -83,8 +83,8 @@
       </BuildableProductRunnable>
       <EnvironmentVariables>
          <EnvironmentVariable
-            key = "OS_ACTIVITY_MODE"
-            value = "disable"
+            key = "debugger"
+            value = "gdb"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>

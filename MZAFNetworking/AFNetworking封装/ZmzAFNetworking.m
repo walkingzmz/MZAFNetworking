@@ -9,6 +9,10 @@
 
 
 #import "ZmzAFNetworking.h"
+#import "YBMD5.h"
+#import <objc/runtime.h>
+#import "YBCacheConstant.h"
+
 
 /**
  *  存放 网络请求的线程
@@ -18,12 +22,33 @@ static NSMutableArray *sg_requestTasks;
 
 static NSString *const MAIN_URLL = @"http://api2.pianke.me/";
 
+@implementation YBCache
+
+@end
+
+static char *NSErrorStatusCodeKey = "NSErrorStatusCodeKey";
+
+@implementation NSError (YBHttp)
+
+- (void)setStatusCode:(NSInteger)statusCode
+{
+    objc_setAssociatedObject(self, NSErrorStatusCodeKey, @(statusCode), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+- (NSInteger)statusCode
+{
+    return [objc_getAssociatedObject(self, NSErrorStatusCodeKey) integerValue];
+}
+
+@end
+
 @interface ZmzAFNetworking()
 
 @property (nonatomic, strong)AFHTTPSessionManager  *manager;
 @property (nonatomic, assign, getter=isConnected) BOOL connected;/**<网络是否连接*/
 @property (nonatomic, retain) NSURLSessionTask *task;
 @end
+
 
 @implementation ZmzAFNetworking
 
@@ -62,35 +87,53 @@ static NSString *const MAIN_URLL = @"http://api2.pianke.me/";
         printf("Error. Count not recover network reachability flags\n");
         return NO;
     }
-    
+
     BOOL isReachable = flags & kSCNetworkFlagsReachable;
     BOOL needsConnection = flags & kSCNetworkFlagsConnectionRequired;
     return (isReachable && !needsConnection) ? YES : NO;
 }
 
 
--(void)requsetWithPath:(NSString *)path Withparams:(NSDictionary *)params withRequestType:(NetworkRequestType)type withResult:(ZmzBlock)resultBlock{
+-(void)requsetWithPath:(NSString *)path withParams:(NSDictionary *)params withCacheType:(YBCacheType)cacheType withRequestType:(NetworkRequestType)type withResult:(ZmzBlock)resultBlock{
     
     if (!self.isConnected) {
         NSLog(@"没有网络,建议在手机设置中打开网络");
-        return;
+      //  return;
     }
 
     switch (type) {
         case NetworkGetType:
         {
-            [self.manager GET:path parameters:nil progress:^(NSProgress * _Nonnull downloadProgress) {
-                
+            
+            YBCache *cache = [self getCache:cacheType url:path params:params withResult:resultBlock];
+            NSString *fileName = cache.fileName;
+            if (cache.result) return;
+            
+           
+            [self.manager GET:path parameters:params progress:^(NSProgress * _Nonnull downloadProgress) {
+                YBLog(@"---------%lld", downloadProgress.totalUnitCount);
             } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
-                 [self handleRequestResultWithDataTask:task responseObject:responseObject error:nil resultBlock:resultBlock];
+                
+                if (resultBlock) {
+                    
+                    //缓存数据
+                    NSData *data = [NSJSONSerialization dataWithJSONObject:responseObject options:NSJSONWritingPrettyPrinted error:nil];
+                    [YBCacheTool cacheForData:data fileName:fileName];
+                    
+                    [self handleRequestResultWithDataTask:task responseObject:responseObject error:nil resultBlock:resultBlock];
+                }
             } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
                  [self handleRequestResultWithDataTask:task responseObject:nil error:error resultBlock:resultBlock];
             }];
+
+            
+            
         }
             break;
         case NetworkPostType:
         {
              NSString *cutPath = [NSString stringWithFormat:@"%@%@",MAIN_URLL,path];
+            /*
             [self.manager POST:cutPath parameters:params progress:^(NSProgress * _Nonnull uploadProgress) {
                 
             } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
@@ -98,6 +141,27 @@ static NSString *const MAIN_URLL = @"http://api2.pianke.me/";
             } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
                 [self handleRequestResultWithDataTask:task responseObject:nil error:error resultBlock:resultBlock];
             }];
+             */
+            //缓存数据的文件名 data
+            YBCache *cache = [self getCache:cacheType url:cutPath params:params withResult:resultBlock];
+            NSString *fileName = cache.fileName;
+            if (cache.result) return;
+            
+            [self.manager POST:cutPath parameters:params progress:^(NSProgress * _Nonnull uploadProgress) {
+                
+            } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
+                
+                if (resultBlock) {
+                    //缓存数据
+                    NSData *data = [NSJSONSerialization dataWithJSONObject:responseObject options:NSJSONWritingPrettyPrinted error:nil];
+                    [YBCacheTool cacheForData:data fileName:fileName];
+                      [self handleRequestResultWithDataTask:task responseObject:responseObject error:nil resultBlock:resultBlock];
+                }
+            } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
+                 [self handleRequestResultWithDataTask:task responseObject:nil error:error resultBlock:resultBlock];
+                
+            }];
+
             
         }
             break;
@@ -130,7 +194,7 @@ static NSString *const MAIN_URLL = @"http://api2.pianke.me/";
                                   error:(NSError *)error
                             resultBlock:(ZmzBlock)resultBlock {
     //do something here...
-   // NSLog(@"%@==-==%@",responseObject,error);
+    NSLog(@"%@==-==%@",responseObject,error);
     if(resultBlock) {
         resultBlock(responseObject,error);
     }
@@ -245,9 +309,99 @@ static NSString *const MAIN_URLL = @"http://api2.pianke.me/";
     dispatch_once(&onceToken, ^{
         if (sg_requestTasks == nil) {
             sg_requestTasks = [[NSMutableArray alloc] init];
+            
         }
     });
     
     return sg_requestTasks;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+- (NSString *)fileName:(NSString *)url params:(NSDictionary *)params
+{
+    NSMutableString *mStr = [NSMutableString stringWithString:url];
+    if (params != nil) {
+        NSData *data = [NSJSONSerialization dataWithJSONObject:params options:NSJSONWritingPrettyPrinted error:nil];
+        NSString *str = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+        [mStr appendString:str];
+        
+    }
+    return mStr;
+}
+
+
+
+
+- (YBCache *)getCache:(YBCacheType)cacheType url:(NSString *)url params:(NSDictionary *)params withResult:(ZmzBlock)resultBlock
+{
+    
+    //缓存数据的文件名
+    NSString *fileName = [self fileName:url params:params];
+    NSData *data = [YBCacheTool getCacheFileName:fileName];
+    
+    YBCache *cache = [[YBCache alloc] init];
+    cache.fileName = fileName;
+
+    
+  
+    
+    if (data.length) {
+        NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:nil];
+       
+        if (cacheType == YBCacheTypeReloadIgnoringLocalCacheData) {//忽略缓存，重新请求
+            
+        } else if (cacheType == YBCacheTypeReturnCacheDataDontLoad) {//有缓存就用缓存，没有缓存就不发请求，当做请求出错处理（用于离线模式）
+            if (resultBlock) {
+                resultBlock(dict,nil);
+            }
+            
+        } else if (cacheType == YBCacheTypeReturnCacheDataElseLoad) {//有缓存就用缓存，没有缓存就重新请求(用于数据不变时)
+            if (resultBlock) {
+                resultBlock(dict,nil);
+            }
+            cache.result = YES;
+            
+        } else if (cacheType == YBCacheTypeReturnCacheDataThenLoad) {///有缓存就先返回缓存，同步请求数据
+            if (resultBlock) {
+                resultBlock(dict,nil);
+            }
+            
+        } else if (cacheType == YBCacheTypeReturnCacheDataExpireThenLoad) {//有缓存 判断是否过期了没有 没有就返回缓存
+            //判断是否过期
+            if (![YBCacheTool isExpire:fileName]) {
+                if (resultBlock) {
+                    resultBlock(dict,nil);
+                }
+                
+                cache.result = YES;
+            }
+        }
+    }
+        
+ 
+    
+    return cache;
+}
+
+
+
 @end
+
+

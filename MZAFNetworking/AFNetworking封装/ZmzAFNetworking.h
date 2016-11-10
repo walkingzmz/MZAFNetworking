@@ -8,6 +8,7 @@
 
 #import <Foundation/Foundation.h>
 #import "AFNetworking.h"
+#import "YBCacheTool.h"
 
 typedef NS_ENUM(NSInteger,NetworkRequestType) {
     NetworkGetType,
@@ -26,7 +27,16 @@ typedef void(^requestSuccessBlock)(id dic);
 /** 请求失败的Block */
 typedef void(^requestFailureBlock)(NSError *error);
 
+
+@interface YBCache : NSObject
+
+@property (nonatomic, copy) NSString *fileName;//缓存文件名
+@property (nonatomic, assign) BOOL result;//是否需要重新请求数据
+
+@end
+
 @interface ZmzAFNetworking : NSObject
+
 
 
 /**
@@ -36,7 +46,7 @@ typedef void(^requestFailureBlock)(NSError *error);
  *  @param resultBlock 返回结果：responseObject,error
  */
 
--(void)requsetWithPath:(NSString *)path Withparams:(NSDictionary *)params withRequestType:(NetworkRequestType)type withResult:(ZmzBlock)resultBlock;
+-(void)requsetWithPath:(NSString *)path withParams:(NSDictionary *)params withCacheType:(YBCacheType)cacheType withRequestType:(NetworkRequestType)type withResult:(ZmzBlock)resultBlock;
 
 /**
  *  发送网络请求

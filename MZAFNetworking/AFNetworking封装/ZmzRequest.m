@@ -15,18 +15,21 @@
 
 @implementation ZmzRequest
 
+
 - (void)getDateWithParams:(NSDictionary *)params WithDataBlock:(sendData)sendBlock{
     
     self.networking = [[ZmzAFNetworking alloc]init];
-    [self.networking requsetWithPath:@"timeline/list" Withparams:params withRequestType:NetworkPostType withResult:^(id responseObject, NSError *error) {
-       
+    
+    [self.networking requsetWithPath:@"timeline/list" withParams:params withCacheType:YBCacheTypeReturnCacheDataThenLoad withRequestType:NetworkPostType withResult:^(id responseObject, NSError *error) {
+
         if (!error) {
-        NSDictionary *dataDic = (NSDictionary *)responseObject;
-        //NSLog(@"======%@========%@",dataDic,error);
-        sendBlock(dataDic,YES);
+            NSDictionary *dataDic = (NSDictionary *)responseObject;
+            
+            sendBlock(dataDic,YES);
         }else{
-        sendBlock(error,NO);
+            sendBlock(error,NO);
         }
+        
     }];
     
     
@@ -35,19 +38,21 @@
 -(void)getListDataBlock:(sendData)sendBlock{
     
     self.networking = [[ZmzAFNetworking alloc]init];
-    [self.networking requsetWithPath:@"http://api2.pianke.me/pub/today" Withparams:nil withRequestType:NetworkGetType withResult:^(id responseObject, NSError *error) {
+  
+    [self.networking requsetWithPath:@"http://api2.pianke.me/pub/today" withParams:nil withCacheType:YBCacheTypeReturnCacheDataThenLoad withRequestType:NetworkGetType withResult:^(id responseObject, NSError *error) {
        
-        
         if (!error) {
             NSDictionary *dic = (NSDictionary *)responseObject;
             sendBlock(dic,YES);
         }else{
             sendBlock(error,NO);
         }
+
         
     }];
     
 }
+
 
 
 @end
